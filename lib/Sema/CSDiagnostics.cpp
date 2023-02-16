@@ -5525,6 +5525,7 @@ bool ExtraneousArgumentsFailure::diagnoseAsNote() {
 }
 
 bool ExtraneousArgumentsFailure::diagnoseSingleExtraArgument() const {
+  
   auto *locator = getLocator();
 
   // This specifically handles a case of `Void(...)` which generates
@@ -5590,7 +5591,7 @@ bool InaccessibleMemberFailure::diagnoseAsError() {
   DeclNameLoc nameLoc;
   if (auto *UDE = getAsExpr<UnresolvedDotExpr>(anchor)) {
     baseExpr = UDE->getBase();
-    nameLoc = UDE->getNameLoc();
+    nameLoc = UDE->getNameLoc(); 
   } else if (auto *UME = getAsExpr<UnresolvedMemberExpr>(anchor)) {
     nameLoc = UME->getNameLoc();
   } else if (auto *SE = getAsExpr<SubscriptExpr>(anchor)) {

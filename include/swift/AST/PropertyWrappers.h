@@ -174,6 +174,13 @@ void simple_display(llvm::raw_ostream &os, PropertyWrapperLValueness l);
 /// be initialized out-of-line using an expression of the wrapped property type.
 PropertyWrapperValuePlaceholderExpr *findWrappedValuePlaceholder(Expr *init);
 
+/// Determine whether we have a suitable initializer within a property wrapper type
+ConstructorDecl *
+findSuitableWrapperInit(ASTContext &ctx, NominalTypeDecl *nominal,
+                        VarDecl *valueVar, PropertyWrapperInitKind initKind,
+                        const SmallVectorImpl<ValueDecl *> &decls,
+                        bool checkSupportsWrappedValueInit = false);
+
 /// The synthesized auxiliary declarations for a wrapped property, including the
 /// backing property wrapper, the projected value variable, and if the wrapped
 /// declaration is a parameter, the local wrapped value variable.

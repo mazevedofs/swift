@@ -113,13 +113,16 @@ static VarDecl *findValueProperty(ASTContext &ctx, NominalTypeDecl *nominal,
 /// Determine whether we have a suitable initializer within a property wrapper
 /// type.
 static ConstructorDecl *
-findSuitableWrapperInit(ASTContext &ctx, NominalTypeDecl *nominal,
+swift::findSuitableWrapperInit(ASTContext &ctx, NominalTypeDecl *nominal,
                         VarDecl *valueVar, PropertyWrapperInitKind initKind,
-                        const SmallVectorImpl<ValueDecl *> &decls) {
+                        const SmallVectorImpl<ValueDecl *> &decls,
+                        bool newStuff,
+                        bool checkSupportsWrappedValueInit) {
   enum class NonViableReason {
     Failable,
     ParameterTypeMismatch,
     Inaccessible,
+    NoWrappedValueInit
   };
 
   SmallVector<std::tuple<ConstructorDecl *, NonViableReason, Type>, 2>
@@ -167,8 +170,13 @@ findSuitableWrapperInit(ASTContext &ctx, NominalTypeDecl *nominal,
       break;
     }
 
-    if (hasExtraneousParam)
+    //Check if it supports initialization with equals
+    if (!checkSupportsWrappedValueInit && hasExtraneousParam) {
+      // should we push back here?
+      nonviable.push_back(
+            std::make_tuple(init, NonViableReason::NoWrappedValueInit, Type()));
       continue;
+    }
 
     if (initKind != PropertyWrapperInitKind::Default) {
       if (!argumentParam)
@@ -599,7 +607,14 @@ PropertyWrapperBackingPropertyTypeRequest::evaluate(
   // property wrapper type.
   auto binding = var->getParentPatternBinding();
   unsigned index = binding ? binding->getPatternEntryIndexForVarDecl(var) : 0;
-  if (binding && binding->isInitialized(index)) {
+  if (binding && binding->isInitialized(index)) { //if it supports equals initialization
+    SmallVector<ValueDecl *, 2> decls;
+    findSuitableWrapperInit(var->getASTContext(), rawType->getAnyNominal(), var,
+                              PropertyWrapperInitKind::WrappedValue, decls, true);
+    if (decls.empty()) {
+      var->diagnose(diag::invalid_init_from_wrapped_value, rawType);
+      return Type();
+  }
     // FIXME(InterfaceTypeRequest): Remove this.
     (void)var->getInterfaceType();
     if (!binding->isInitializerChecked(index))
@@ -757,6 +772,7 @@ Expr *swift::buildPropertyWrapperInitCall(
 
       case PropertyWrapperTypeInfo::HasWrappedValueInit:
       case PropertyWrapperTypeInfo::NoWrappedValueInit:
+      //what here?
         argName = ctx.Id_wrappedValue;
         break;
       }
